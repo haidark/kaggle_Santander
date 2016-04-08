@@ -39,62 +39,69 @@ cleanData = [cleanData; adaFeats];
 labels = [labels; adaLabels];
 
 
-%% svd plotting
+% svd plotting
 % 
 % [U,S,V] = svd(cleanData, 'econ');
 % plot3(U(sat,1), U(sat,2), U(sat,3), 'k.');
 % hold on
 % plot3(U(dis,1), U(dis,2), U(dis,3), 'r.');
 % hold off;
-%% pick a validation set
-N = size(cleanData,1);
-M = size(cleanData,2);
 
-sat = labels==1;
-dis = labels==0;
-disp(sum(sat));
-disp(sum(dis));
+%% train H models on different validation splits of the data
+H = 10;
+outs = zeros(H, size(cleanTest,1));
+models = cell(H,1);
+parfor h = 1:H
+    % pick a validation set
+    N = size(cleanData,1);
+    M = size(cleanData,2);
 
-satInds = find(sat);
-disInds = find(dis);
+    sat = labels==1;
+    dis = labels==0;
 
-satFrac = sum(sat)/N;
-disFrac = sum(dis)/N;
+    satInds = find(sat);
+    disInds = find(dis);
 
-valN = N*0.1;
-valSatN = ceil(valN*satFrac);
-valDisN = valSatN; floor(valN*disFrac);
+    satFrac = sum(sat)/N;
+    disFrac = sum(dis)/N;
 
-satInds = find(sat);
-disInds = find(dis);
+    valN = N*0.1;
+    valSatN = ceil(valN*satFrac);
+    valDisN = valSatN; floor(valN*disFrac);
 
-valSatInds = randperm(length(satInds), valSatN);
-valDisInds = randperm(length(disInds), valDisN);
+    satInds = find(sat);
+    disInds = find(dis);
 
-valInds = [satInds(valSatInds); disInds(valDisInds)];
+    valSatInds = randperm(length(satInds), valSatN);
+    valDisInds = randperm(length(disInds), valDisN);
 
-satInds(valSatInds) = [];
-disInds(valDisInds) = [];
+    valInds = [satInds(valSatInds); disInds(valDisInds)];
 
-trainInds = [satInds; disInds];
+    satInds(valSatInds) = [];
+    disInds(valDisInds) = [];
 
-targets = zeros(2,N);
-for i = 1:N
-    targets(labels(i)+1,i)=1;
+    trainInds = [satInds; disInds];
+
+    targets = zeros(2,N);
+    for i = 1:N
+        targets(labels(i)+1,i)=1;
+    end
+    % train the neural network
+    net = patternnet([512 256 128 64 32 16]);
+    net.divideFcn = 'divideind';
+    net.divideParam.trainInd = trainInds;
+    net.divideParam.valInd = valInds;
+
+    [net,tr] = train(net, cleanData', targets);
+    models{h} = net;
+%     plotperform(tr)
+    out = net(cleanTest');
+    outs(h,:) = out(2,:);
+    disp(['Done training model #{' num2str(h) '}...']);
 end
-%% train the neural network
 
-net = patternnet([256, 128, 64, 32, 16]);
-net.divideFcn = 'divideind';
-net.divideParam.trainInd = trainInds;
-net.divideParam.valInd = valInds;
-% net.divideParam.testInd = [];
-
-[net,tr] = train(net, cleanData', targets);
-plotperform(tr)
-outs = net(cleanTest');
-preds = outs(2,:)';
-%% predict on test set and output results to submission file
+%% output results to submission file
+preds = mean(outs,1)';
 fID = fopen('submission.csv','w');
 fprintf(fID, 'ID,TARGET\n');
 
