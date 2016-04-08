@@ -48,6 +48,7 @@ labels = [labels; adaLabels];
 % hold off;
 
 %% train H models on different validation splits of the data
+clc
 H = 10;
 outs = zeros(H, size(cleanTest,1));
 models = cell(H,1);
@@ -87,7 +88,11 @@ parfor h = 1:H
         targets(labels(i)+1,i)=1;
     end
     % train the neural network
-    net = patternnet([512 256 128 64 32 16]);
+    layout = [randi(512,1) randi(256,1) randi(128,1) randi(64) randi(32) randi(16)];
+    disp(['Training model #{' num2str(h) '}'])
+    disp(['Model #{' num2str(h) '} hidden layers: ' num2str(layout)])
+    break
+    net = patternnet(layout);
     net.divideFcn = 'divideind';
     net.divideParam.trainInd = trainInds;
     net.divideParam.valInd = valInds;
