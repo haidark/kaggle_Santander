@@ -49,10 +49,10 @@ labels = [labels; adaLabels];
 
 %% train H models on different validation splits of the data
 clc
-H = 10;
+H = 100;
 outs = zeros(H, size(cleanTest,1));
 models = cell(H,1);
-parfor h = 1:H
+for h = 1:H
     % pick a validation set
     N = size(cleanData,1);
     M = size(cleanData,2);
@@ -89,9 +89,9 @@ parfor h = 1:H
     end
     % train the neural network
     layout = [randi(512,1) randi(256,1) randi(128,1) randi(64) randi(32) randi(16)];
+%     layout = randi(512, randi(15,1), 1)';
     disp(['Training model #{' num2str(h) '}'])
     disp(['Model #{' num2str(h) '} hidden layers: ' num2str(layout)])
-    break
     net = patternnet(layout);
     net.divideFcn = 'divideind';
     net.divideParam.trainInd = trainInds;
